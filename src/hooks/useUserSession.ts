@@ -6,19 +6,25 @@ export const useUserSession = () => {
   const { token, setUser, logout } = useAuthStore();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      if (!token) return;
+  if (!token) return;
 
-      try {
-        const res = await getUser();
-        setUser(res.data.user);
-      } catch (error: any) {
-        // Invalid or expired token
-        console.warn("Session expired or invalid:", error.response?.data?.message);
-        logout();
-      }
-    };
+  // 🚫 Skip API call for mock tokens (during frontend-only testing)
+  if (token.startsWith("mock")) {
+    console.log("⚙️ Mock token detected — skipping get-user check");
+    return;
+  }
 
-    fetchUser();
-  }, [token, setUser, logout]);
+  const fetchUser = async () => {
+    try {
+      const res = await getUser();
+      setUser(res.data.user);
+    } catch (error: any) {
+      console.warn("Session expired or invalid:", error.response?.data?.message);
+      logout();
+    }
+  };
+
+  fetchUser();
+}, [token, setUser, logout]);
+
 };
