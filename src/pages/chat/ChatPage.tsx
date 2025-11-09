@@ -29,15 +29,31 @@ interface Message {
   timestamp: string;
 }
 
+interface Particle {
+  id: number;
+  leftPct: number;
+  topPct: number;
+  size: number;
+  duration: number;
+  delay: number;
+  opacity: number;
+}
+
+// Animations
 const pulse = keyframes`
-  0%, 80%, 100% {
-    transform: scale(0.8);
-    opacity: 0.5;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+`;
+
+const messageAppear = keyframes`
+  0% {opacity: 0; transform: translateY(10px) scale(0.98);}
+  100% {opacity: 1; transform: translateY(0) scale(1);}
+`;
+
+const drift = keyframes`
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(10px, -50px, 0) scale(1.02); }
+  100% { transform: translate3d(0, -100px, 0) scale(1); }
 `;
 
 const ChatPage: React.FC = () => {
@@ -49,8 +65,25 @@ const ChatPage: React.FC = () => {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [particles, setParticles] = useState<Particle[]>([]);
+
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  // particles
+  useEffect(() => {
+    const PARTICLE_COUNT = 30;
+    const next: Particle[] = Array.from({ length: PARTICLE_COUNT }).map((_, i) => ({
+      id: i,
+      leftPct: Math.random() * 100,
+      topPct: Math.random() * 100,
+      size: 4 + Math.random() * 10,
+      duration: 20 + Math.random() * 20,
+      delay: Math.random() * 10,
+      opacity: 0.05 + Math.random() * 0.1,
+    }));
+    setParticles(next);
+  }, [mode]);
 
   useEffect(() => {
     const saved = localStorage.getItem("coursecompass_chat_history");
@@ -59,7 +92,7 @@ const ChatPage: React.FC = () => {
       setMessages([
         {
           role: "bot",
-          content: `👋 Hi ${user?.name || "there"}! I'm your CourseCompass assistant. How can I help you plan your semester today?`,
+          content: `📚 Hello ${user?.name || "Scholar"}! I'm your CourseCompass Academic Assistant. How may I assist you today?`,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -70,15 +103,13 @@ const ChatPage: React.FC = () => {
       localStorage.setItem("coursecompass_chat_history", JSON.stringify(messages));
   }, [messages]);
 
-  const scrollToBottom = (smooth = true) => {
+  const scrollToBottom = (smooth = true) =>
     chatEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
-  };
 
   const handleScroll = () => {
     if (!chatContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 80;
-    setShowScrollButton(!isAtBottom);
+    setShowScrollButton(scrollHeight - scrollTop - clientHeight >= 80);
   };
 
   const streamBotReply = (text: string) => {
@@ -98,12 +129,11 @@ const ChatPage: React.FC = () => {
         clearInterval(interval);
         setIsTyping(false);
       }
-    }, 60);
+    }, 45);
   };
 
   const handleSend = async () => {
     if (!input.trim()) return;
-
     const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const userMsg: Message = { role: "user", content: input, timestamp: now };
     setMessages((prev) => [...prev, userMsg]);
@@ -112,16 +142,17 @@ const ChatPage: React.FC = () => {
 
     try {
       const res = await sendChatMessage({ message: input });
-      const reply = res.data.reply || "I’m here to help you plan your semester!";
+      const reply = res?.data?.reply || "Let's analyze that further…";
       const botMsg: Message = { role: "bot", content: "", timestamp: now };
       setMessages((prev) => [...prev, botMsg]);
       streamBotReply(reply);
     } catch {
-      const fallback = "⚠️ Server unreachable. (This is a mock reply — backend is offline.)";
+      const fallback = "⚠️ Network issue — operating in offline academic mode.";
       const botMsg: Message = { role: "bot", content: "", timestamp: now };
       setMessages((prev) => [...prev, botMsg]);
       streamBotReply(fallback);
     }
+
     scrollToBottom();
   };
 
@@ -135,17 +166,14 @@ const ChatPage: React.FC = () => {
   const handleClearChat = () => {
     if (!window.confirm("Are you sure you want to clear this chat?")) return;
     const resetMsg: Message[] = [
-  {
-    role: "bot",
-    content: `👋 Hi ${user?.name || "there"}! I'm your CourseCompass assistant. How can I help you plan your semester today?`,
-    timestamp: new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  },
-];
-setMessages(resetMsg);
-localStorage.setItem("coursecompass_chat_history", JSON.stringify(resetMsg));
+      {
+        role: "bot",
+        content: `📚 Hello ${user?.name || "Scholar"}! I'm your CourseCompass Academic Assistant. How may I assist you today?`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      },
+    ];
+    setMessages(resetMsg);
+    localStorage.setItem("coursecompass_chat_history", JSON.stringify(resetMsg));
   };
 
   const handleLogout = () => {
@@ -158,48 +186,94 @@ localStorage.setItem("coursecompass_chat_history", JSON.stringify(resetMsg));
   return (
     <Box
       sx={{
+        height: "100vh",
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
-        background: theme.palette.background.default,
-        p: 2,
+        background:
+          mode === "light"
+            ? "#E5E7EB" // soft gray background
+            : "radial-gradient(circle at 10% 10%, #0f1115, #181a1f)",
+        color: theme.palette.text.primary,
         position: "relative",
+        overflow: "hidden",
+        p: 2,
+        fontFamily: "'Inter', sans-serif",
+        transition: "background 0.6s ease",
       }}
     >
+      {/* Background Particles */}
+      <Box
+        aria-hidden
+        sx={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          overflow: "hidden",
+          zIndex: 0,
+        }}
+      >
+        {particles.map((p) => (
+          <Box
+            key={p.id}
+            sx={{
+              position: "absolute",
+              left: `${p.leftPct}%`,
+              top: `${p.topPct}%`,
+              width: p.size,
+              height: p.size,
+              borderRadius: "50%",
+              background:
+                mode === "light"
+                  ? "radial-gradient(circle, rgba(62,124,177,0.12), rgba(62,124,177,0))"
+                  : "radial-gradient(circle, rgba(255,255,255,0.12), rgba(255,255,255,0))",
+              opacity: p.opacity,
+              animation: `${drift} ${p.duration}s linear ${p.delay}s infinite`,
+              willChange: "transform",
+            }}
+          />
+        ))}
+      </Box>
+
       {/* Header */}
       <Paper
-        elevation={2}
+        elevation={4}
         sx={{
           p: 2,
-          mb: 1,
-          borderRadius: 3,
-          background: theme.palette.background.paper,
+          mb: 2,
+          borderRadius: 4,
+          background: mode === "light" ? "rgba(255,255,255,0.9)" : "rgba(25,25,25,0.9)",
+          border: "1px solid rgba(0,0,0,0.05)",
+          backdropFilter: "blur(12px)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          boxShadow:
+            mode === "light"
+              ? "0 8px 24px rgba(0,0,0,0.05)"
+              : "0 8px 24px rgba(255,255,255,0.05)",
         }}
       >
-        <Box display="flex" alignItems="center" gap={1}>
-          <Avatar sx={{ bgcolor: "#1976d2" }}>
+        <Box display="flex" alignItems="center" gap={1.5}>
+          <Avatar sx={{ bgcolor: "#3E7CB1", width: 42, height: 42, fontWeight: 700 }}>
             {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
           </Avatar>
           <Box>
-            <Typography variant="h6" fontWeight={600}>
-              Hi, {user?.name || "there"} 👋
+            <Typography variant="h6" fontWeight={700}>
+              Welcome, {user?.name || "Scholar"} 👋
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              CourseCompass Assistant 💬
+              Academic Assistant • CourseCompass
             </Typography>
           </Box>
         </Box>
 
         <Box display="flex" alignItems="center" gap={1}>
-          <Tooltip title="Toggle theme">
+          <Tooltip title="Toggle Theme">
             <IconButton onClick={toggleTheme}>
               {mode === "light" ? <Brightness4RoundedIcon /> : <Brightness7RoundedIcon />}
             </IconButton>
           </Tooltip>
-          <Tooltip title="Clear chat">
+          <Tooltip title="Clear Chat">
             <IconButton color="error" onClick={handleClearChat}>
               <DeleteOutlineRoundedIcon />
             </IconButton>
@@ -212,9 +286,23 @@ localStorage.setItem("coursecompass_chat_history", JSON.stringify(resetMsg));
         </Box>
       </Paper>
 
-      <Divider />
+      {/* Divider */}
+      <Divider sx={{ mb: 2, "&::before, &::after": { borderColor: "#d4c7a1" } }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "#bca86a",
+            fontWeight: 600,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            fontFamily: "'EB Garamond', serif",
+          }}
+        >
+          ✦ Academic Dialogue ✦
+        </Typography>
+      </Divider>
 
-      {/* Chat messages */}
+      {/* Chat Area */}
       <Box
         ref={chatContainerRef}
         onScroll={handleScroll}
@@ -225,63 +313,77 @@ localStorage.setItem("coursecompass_chat_history", JSON.stringify(resetMsg));
           flexDirection: "column",
           gap: 2,
           p: 2,
+          pb: 14,
         }}
       >
-        {messages.map((msg, index) => (
+        {messages.map((msg, i) => (
           <Box
-            key={index}
+            key={i}
             sx={{
+              transition: "transform 0.25s ease, box-shadow 0.3s ease",
+              "&:hover": {
+                transform: "translateY(-3px)",
+                boxShadow:
+                  msg.role === "user"
+                    ? "0 10px 20px rgba(62,124,177,0.4)"
+                    : "0 8px 18px rgba(0,0,0,0.08)",
+              },
+
               alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-              bgcolor:
+              background:
                 msg.role === "user"
-                  ? theme.palette.primary.main
-                  : theme.palette.background.paper,
-              color: msg.role === "user" ? "#fff" : "text.primary",
-              px: 2,
-              py: 1,
-              borderRadius: 3,
+                  ? "linear-gradient(135deg, #3E7CB1, #5B9BD5)"
+                  : mode === "light"
+                  ? "#ffffff"
+                  : "rgba(30,30,30,0.85)",
+              color: msg.role === "user" ? "#fff" : theme.palette.text.primary,
+              px: 2.5,
+              py: 1.5,
+              borderRadius:
+                msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
               boxShadow:
                 msg.role === "user"
-                  ? "0 2px 6px rgba(25,118,210,0.3)"
-                  : "0 2px 6px rgba(0,0,0,0.2)",
-              maxWidth: "75%",
+                  ? "0 8px 16px rgba(62,124,177,0.35)"
+                  : "0 6px 12px rgba(0,0,0,0.08)",
+              maxWidth: "70%",
+              fontFamily: msg.role === "bot" ? "'Merriweather', serif" : "'Inter', sans-serif",
+              animation: `${messageAppear} 0.35s ease`,
             }}
           >
             <Typography variant="body1">{msg.content}</Typography>
-            <Typography variant="caption" sx={{ opacity: 0.7, display: "block", mt: 0.5 }}>
+            <Typography variant="caption" sx={{ opacity: 0.6, display: "block", mt: 0.5 }}>
               {msg.timestamp}
             </Typography>
           </Box>
         ))}
-
         {isTyping && (
           <Box
             sx={{
               alignSelf: "flex-start",
-              bgcolor: theme.palette.background.paper,
+              background: mode === "light" ? "#fff" : "rgba(30,30,30,0.85)",
               px: 2,
               py: 1,
-              borderRadius: 3,
-              boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-              maxWidth: "60%",
+              borderRadius: "18px 18px 18px 4px",
+              boxShadow: "0 3px 8px rgba(0,0,0,0.1)",
               display: "flex",
               alignItems: "center",
               gap: 1.2,
             }}
           >
             <Typography variant="body2" color="text.secondary">
-              CourseCompass is typing
+              Assistant is composing
             </Typography>
-            <Box sx={{ display: "flex", gap: 0.5 }}>
+            <Box sx={{ display: "flex", gap: 0.4 }}>
               {[0, 0.2, 0.4].map((delay) => (
                 <Box
                   key={delay}
                   sx={{
-                    width: 6,
-                    height: 6,
-                    bgcolor: "#1976d2",
+                    width: 8,
+                    height: 8,
+                    bgcolor: "#3E7CB1",
                     borderRadius: "50%",
-                    animation: `${pulse} 1s infinite ease-in-out ${delay}s`,
+                    animation: `${pulse} 1.2s infinite ease-in-out ${delay}s`,
+                    boxShadow: "0 0 6px rgba(62,124,177,0.5)",
                   }}
                 />
               ))}
@@ -291,51 +393,90 @@ localStorage.setItem("coursecompass_chat_history", JSON.stringify(resetMsg));
         <div ref={chatEndRef} />
       </Box>
 
-      <Zoom in={showScrollButton}>
-        <Fab
-          color="primary"
-          size="small"
-          onClick={() => scrollToBottom()}
-          sx={{
-            position: "fixed",
-            bottom: 100,
-            right: 30,
-            boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
-          }}
-        >
-          <KeyboardArrowDownRoundedIcon />
-        </Fab>
-      </Zoom>
-
-      <Paper
+      {/* Floating Input */}
+      <Box
         sx={{
-          display: "flex",
-          alignItems: "center",
-          borderRadius: 3,
-          p: 1,
-          mt: 1,
-          background: theme.palette.background.paper,
-          boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+          position: "fixed",
+          bottom: 32,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "72%",
+          maxWidth: 850,
+          zIndex: 5,
         }}
       >
-        <TextField
-          fullWidth
-          placeholder="Type your message..."
-          variant="outlined"
-          size="small"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          multiline
-          maxRows={4}
+        <Paper
+          elevation={10}
           sx={{
-            "& .MuiOutlinedInput-root": { borderRadius: 3 },
+            display: "flex",
+            alignItems: "center",
+            borderRadius: 8,
+            px: 2.2,
+            py: 1.2,
+            background:
+              mode === "light"
+                ? "rgba(250,250,250,0.95)" // light gray to contrast gray bg
+                : "rgba(32,32,32,0.85)",
+            backdropFilter: "blur(18px)",
+            boxShadow:
+              mode === "light"
+                ? "0 12px 40px rgba(0,0,0,0.18)"
+                : "0 8px 35px rgba(255,255,255,0.08)",
+            border:
+              mode === "light"
+                ? "1px solid rgba(0,0,0,0.04)"
+                : "1px solid rgba(255,255,255,0.08)",
+            transition: "all 0.3s ease",
+            "&:focus-within": {
+              transform: "scale(1.02)",
+              boxShadow:
+                mode === "light"
+                  ? "0 12px 40px rgba(62,124,177,0.25)"
+                  : "0 12px 40px rgba(62,124,177,0.3)",
+            },
           }}
-        />
-        <IconButton color="primary" onClick={handleSend} sx={{ ml: 1 }}>
-          <SendRoundedIcon />
-        </IconButton>
-      </Paper>
+        >
+          <TextField
+            fullWidth
+            placeholder="Type your scholarly question..."
+            variant="outlined"
+            size="small"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            multiline
+            maxRows={4}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 4,
+                background: "transparent",
+                "& fieldset": { border: "none" },
+                fontSize: "0.95rem",
+                color: mode === "light" ? "#1E1E1E" : "#f5f5f5",
+                "&::placeholder": {
+                  color: mode === "light" ? "#7a7a7a" : "#999",
+                  opacity: 1,
+                },
+              },
+            }}
+          />
+          <IconButton
+            color="primary"
+            onClick={handleSend}
+            sx={{
+              ml: 1,
+              transform: "translateY(2px)",
+              transition: "transform 0.2s ease, filter 0.3s ease",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                filter: "drop-shadow(0 0 6px rgba(62,124,177,0.4))",
+              },
+            }}
+          >
+            <SendRoundedIcon />
+          </IconButton>
+        </Paper>
+      </Box>
     </Box>
   );
 };
