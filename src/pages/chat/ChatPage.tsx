@@ -142,7 +142,7 @@ const ChatPage: React.FC = () => {
 
     try {
       const res = await sendChatMessage({ message: input });
-      const reply = res?.data?.reply || "Let's analyze that further…";
+      const reply = res?.data?.message || "Let's analyze that further…";
       const botMsg: Message = { role: "bot", content: "", timestamp: now };
       setMessages((prev) => [...prev, botMsg]);
       streamBotReply(reply);
