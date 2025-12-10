@@ -9,12 +9,16 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
+  Alert,
 } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate } from "react-router-dom";
 import { registerUser } from "../../services/authService";
+import { useAuthStore } from "../../store/authStore";
 import { useThemeContext } from "../../context/ThemeProvider";
+import { getErrorMessage } from "../../utils/errorHandler";
 import Brightness4RoundedIcon from "@mui/icons-material/Brightness4Rounded";
 import Brightness7RoundedIcon from "@mui/icons-material/Brightness7Rounded";
 
@@ -27,10 +31,12 @@ const registerSchema = z.object({
 type RegisterFormData = z.infer<typeof registerSchema>;
 
 const RegisterPage: React.FC = () => {
+  const { setToken, setUser } = useAuthStore();
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [success, setSuccess] = React.useState("");
   const { mode, toggleTheme } = useThemeContext();
+  const navigate = useNavigate();
 
   const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -39,12 +45,23 @@ const RegisterPage: React.FC = () => {
   const onSubmit = async (data: RegisterFormData) => {
     setError(""); setSuccess(""); setLoading(true);
     try {
-      await registerUser(data);
-      setSuccess("Account created! Redirecting to login...");
-      setTimeout(() => (window.location.href = "/login"), 1500);
+      const res = await registerUser(data);
+      setSuccess("Account created! Redirecting to chat...");
+      
+      // Auto-login after registration if token is returned
+      if (res.data.token) {
+        setToken(res.data.token);
+      }
+      if (res.data.user) {
+        setUser(res.data.user);
+      }
+      
+      setTimeout(() => navigate("/chat"), 1000);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed");
-    } finally {
+      const errorMessage = getErrorMessage(err);
+      setError(errorMessage);
+      console.error("Registration error:", err);
+    } finally{
       setLoading(false);
     }
   };
@@ -72,8 +89,16 @@ const RegisterPage: React.FC = () => {
             <TextField label="Password" type="password" fullWidth margin="normal"
               {...register("password")} error={!!errors.password}
               helperText={errors.password?.message} />
-            {error && <Typography color="error" variant="body2" mt={1}>{error}</Typography>}
-            {success && <Typography color="primary" variant="body2" mt={1}>{success}</Typography>}
+            {error && (
+              <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError("")}>
+                {error}
+              </Alert>
+            )}
+            {success && (
+              <Alert severity="success" sx={{ mt: 2 }}>
+                {success}
+              </Alert>
+            )}
             <Button fullWidth variant="contained" sx={{ mt: 3, py: 1.2 }} type="submit"
               disabled={loading}>{loading ? <CircularProgress size={24} /> : "Register"}</Button>
           </form>

@@ -9,13 +9,16 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
+  Alert,
 } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate } from "react-router-dom";
 import { loginUser } from "../../services/authService";
 import { useAuthStore } from "../../store/authStore";
 import { useThemeContext } from "../../context/ThemeProvider";
+import { getErrorMessage } from "../../utils/errorHandler";
 import Brightness4RoundedIcon from "@mui/icons-material/Brightness4Rounded";
 import Brightness7RoundedIcon from "@mui/icons-material/Brightness7Rounded";
 
@@ -30,6 +33,7 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const { mode, toggleTheme } = useThemeContext();
+  const navigate = useNavigate();
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -45,18 +49,24 @@ const LoginPage: React.FC = () => {
       setUser(mockUser);
       localStorage.setItem("authToken", "mock-jwt-token-123");
       localStorage.setItem("user", JSON.stringify(mockUser));
-      setTimeout(() => (window.location.href = "/chat"), 300);
       setLoading(false);
+      navigate("/chat");
       return;
     }
 
     try {
       const res = await loginUser(data);
-      setToken(res.data.token);
-      setUser(res.data.user);
-      window.location.href = "/chat";
+      if (res.data.token) {
+        setToken(res.data.token);
+      }
+      if (res.data.user) {
+        setUser(res.data.user);
+      }
+      navigate("/chat");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Login failed");
+      const errorMessage = getErrorMessage(err);
+      setError(errorMessage);
+      console.error("Login error:", err);
     } finally {
       setLoading(false);
     }
@@ -81,7 +91,11 @@ const LoginPage: React.FC = () => {
             <TextField label="Password" type="password" fullWidth margin="normal"
               {...register("password")} error={!!errors.password}
               helperText={errors.password?.message} />
-            {error && <Typography color="error" variant="body2" mt={1}>{error}</Typography>}
+            {error && (
+              <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError("")}>
+                {error}
+              </Alert>
+            )}
             <Button fullWidth variant="contained" sx={{ mt: 3, py: 1.2 }} type="submit"
               disabled={loading}>{loading ? <CircularProgress size={24} /> : "Login"}</Button>
           </form>

@@ -1,28 +1,59 @@
 import apiClient from "./apiClient";
+import { AxiosResponse } from "axios";
 
-interface RegisterPayload {
+// Request payload interfaces
+export interface RegisterPayload {
   name: string;
   email: string;
   password: string;
   phoneNo: string;
 }
 
-interface LoginPayload {
+export interface LoginPayload {
   email: string;
   password: string;
 }
 
-interface OtpLoginPayload {
+export interface OtpLoginPayload {
   phoneNo: string;
 }
 
-interface VerifyOtpPayload {
+export interface VerifyOtpPayload {
   phoneNo: string;
   otp: string;
 }
 
-export const registerUser = (data: RegisterPayload) => apiClient.post("/auth/register", data);
-export const loginUser = (data: LoginPayload) => apiClient.post("/auth/login", data);
-export const otpLogin = (data: OtpLoginPayload) => apiClient.post("/auth/otp-login", data);
-export const verifyOtp = (data: VerifyOtpPayload) => apiClient.post("/auth/verify-otp", data);
-export const getUser = () => apiClient.get("/auth/get-user");
+// Response interfaces
+export interface UserData {
+  id?: string;
+  name: string;
+  email: string;
+  phoneNo: string;
+}
+
+export interface AuthResponse {
+  message: string;
+  token?: string;
+  user?: UserData;
+}
+
+export interface GetUserResponse {
+  message: string;
+  user: UserData;
+}
+
+// API service functions with proper typing
+export const registerUser = (data: RegisterPayload): Promise<AxiosResponse<AuthResponse>> =>
+  apiClient.post("/auth/register", data);
+
+export const loginUser = (data: LoginPayload): Promise<AxiosResponse<AuthResponse>> =>
+  apiClient.post("/auth/login", data);
+
+export const otpLogin = (data: OtpLoginPayload): Promise<AxiosResponse<{ message: string }>> =>
+  apiClient.post("/auth/otp-login", data);
+
+export const verifyOtp = (data: VerifyOtpPayload): Promise<AxiosResponse<AuthResponse>> =>
+  apiClient.post("/auth/verify-otp", data);
+
+export const getUser = (): Promise<AxiosResponse<GetUserResponse>> =>
+  apiClient.get("/auth/get-user");
