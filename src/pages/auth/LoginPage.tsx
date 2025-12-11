@@ -19,6 +19,7 @@ import { loginUser } from "../../services/authService";
 import { useAuthStore } from "../../store/authStore";
 import { useThemeContext } from "../../context/ThemeProvider";
 import { getErrorMessage } from "../../utils/errorHandler";
+
 import Brightness4RoundedIcon from "@mui/icons-material/Brightness4Rounded";
 import Brightness7RoundedIcon from "@mui/icons-material/Brightness7Rounded";
 
@@ -26,6 +27,7 @@ const loginSchema = z.object({
   email: z.string().email("Invalid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
+
 type LoginFormData = z.infer<typeof loginSchema>;
 
 const LoginPage: React.FC = () => {
@@ -35,7 +37,11 @@ const LoginPage: React.FC = () => {
   const { mode, toggleTheme } = useThemeContext();
   const navigate = useNavigate();
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
 
@@ -43,12 +49,20 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     setError("");
 
+    // Mock login for testing
     if (data.email === "a.b@gmail.com" && data.password === "1234567890") {
-      const mockUser = { id: "123", name: "Test User", email: data.email, phoneNo: "9999999999" };
+      const mockUser = {
+        id: "123",
+        name: "Test User",
+        email: data.email,
+        phoneNo: "9999999999",
+      };
+
       setToken("mock-jwt-token-123");
       setUser(mockUser);
       localStorage.setItem("authToken", "mock-jwt-token-123");
       localStorage.setItem("user", JSON.stringify(mockUser));
+
       setLoading(false);
       navigate("/chat");
       return;
@@ -56,12 +70,10 @@ const LoginPage: React.FC = () => {
 
     try {
       const res = await loginUser(data);
-      if (res.data.token) {
-        setToken(res.data.token);
-      }
-      if (res.data.user) {
-        setUser(res.data.user);
-      }
+
+      if (res.data.token) setToken(res.data.token);
+      if (res.data.user) setUser(res.data.user);
+
       navigate("/chat");
     } catch (err: any) {
       const errorMessage = getErrorMessage(err);
@@ -73,35 +85,122 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh"
-      sx={{ background: mode === "light" ? "linear-gradient(135deg, #eef2f3 0%, #8e9eab 100%)" : "#121212" }}>
-      <Card sx={{ width: 380, borderRadius: 4, boxShadow: 6 }}>
+    <Box
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
+      minHeight="100vh"
+      role="main"
+      aria-label="Login page"
+      sx={{
+        background:
+          mode === "light"
+            ? "linear-gradient(135deg, #eef2f3 0%, #8e9eab 100%)"
+            : "#121212",
+        p: 2,
+      }}
+    >
+      <Card
+        sx={{
+          width: 380,
+          borderRadius: 4,
+          boxShadow: 6,
+          backgroundColor: mode === "light" ? "#ffffff" : "#1e1e1e",
+        }}
+      >
         <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-            <Typography variant="h5" fontWeight={600}>Welcome Back 👋</Typography>
+          {/* Header */}
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            mb={1}
+          >
+            <Typography variant="h5" fontWeight={600}>
+              Welcome Back 👋
+            </Typography>
+
+            {/* Theme Toggle Button — with aria-label */}
             <Tooltip title="Toggle theme">
-              <IconButton onClick={toggleTheme}>
-                {mode === "light" ? <Brightness4RoundedIcon /> : <Brightness7RoundedIcon />}
+              <IconButton
+                onClick={toggleTheme}
+                aria-label="Toggle light or dark theme"
+              >
+                {mode === "light" ? (
+                  <Brightness4RoundedIcon />
+                ) : (
+                  <Brightness7RoundedIcon />
+                )}
               </IconButton>
             </Tooltip>
           </Box>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <TextField label="Email" fullWidth margin="normal" {...register("email")}
-              error={!!errors.email} helperText={errors.email?.message} />
-            <TextField label="Password" type="password" fullWidth margin="normal"
-              {...register("password")} error={!!errors.password}
-              helperText={errors.password?.message} />
+
+          {/* FORM */}
+          <form onSubmit={handleSubmit(onSubmit)} aria-label="Login form">
+            <TextField
+              label="Email"
+              aria-label="Email address"
+              fullWidth
+              margin="normal"
+              {...register("email")}
+              error={!!errors.email}
+              helperText={errors.email?.message}
+            />
+
+            <TextField
+              label="Password"
+              aria-label="Password"
+              type="password"
+              fullWidth
+              margin="normal"
+              {...register("password")}
+              error={!!errors.password}
+              helperText={errors.password?.message}
+            />
+
+            {/* Error Alert */}
             {error && (
-              <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError("")}>
+              <Alert
+                severity="error"
+                sx={{ mt: 2 }}
+                aria-live="assertive"
+                onClose={() => setError("")}
+              >
                 {error}
               </Alert>
             )}
-            <Button fullWidth variant="contained" sx={{ mt: 3, py: 1.2 }} type="submit"
-              disabled={loading}>{loading ? <CircularProgress size={24} /> : "Login"}</Button>
+
+            {/* Submit Button */}
+            <Button
+              fullWidth
+              variant="contained"
+              type="submit"
+              aria-label="Login button"
+              sx={{ mt: 3, py: 1.2 }}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : "Login"}
+            </Button>
           </form>
-          <Typography textAlign="center" mt={3} fontSize={14}>
+
+          {/* FOOTER */}
+          <Typography
+            textAlign="center"
+            mt={3}
+            fontSize={14}
+            aria-label="Register link prompt"
+          >
             Don’t have an account?{" "}
-            <a href="/register" style={{ color: "#1976d2", textDecoration: "none" }}>Register</a>
+            <a
+              href="/register"
+              style={{
+                color: "#1976d2",
+                textDecoration: "none",
+              }}
+              aria-label="Navigate to registration page"
+            >
+              Register
+            </a>
           </Typography>
         </CardContent>
       </Card>
