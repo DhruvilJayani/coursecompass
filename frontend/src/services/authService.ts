@@ -56,4 +56,4 @@ export const verifyOtp = (data: VerifyOtpPayload): Promise<AxiosResponse<AuthRes
   apiClient.post("/auth/verify-otp", data);
 
 export const getUser = (): Promise<AxiosResponse<GetUserResponse>> =>
-  apiClient.get("/auth/get-user");
+  apiClient.get("/auth/me");
