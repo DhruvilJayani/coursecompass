@@ -30,6 +30,42 @@ CourseCompass is a full-stack web application that helps students navigate their
 
 ---
 
+## Screenshots
+
+### Authentication Flow
+
+**Registration Page**
+
+![Registration Page](images/register-page.png)
+
+**Login Page**
+
+![Login Page](images/login-page.png)
+
+**OTP Email Verification**
+
+![OTP Email](images/otp-mail.png)
+
+**OTP Entry Page**
+
+![OTP Enter Page](images/otp-enter-page.png)
+
+### Chat Interface
+
+**Main Chat Interface**
+
+![Chat Interface](images/chat-ui.png)
+
+**Light Mode**
+
+![Light Mode Chat](images/light-mode-chat.png)
+
+**Dark Mode**
+
+![Dark Mode Chat](images/dark-mode-chat.png)
+
+---
+
 ## Project Structure
 
 ```
